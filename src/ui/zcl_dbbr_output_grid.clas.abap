@@ -64,6 +64,8 @@ CLASS zcl_dbbr_output_grid DEFINITION
     METHODS copy_as_value_statement
       IMPORTING
         if_compact TYPE abap_bool OPTIONAL.
+    "! <p class="shorttext synchronized" lang="en">Exports current data to JSON file</p>
+    METHODS export_to_json_file.
     "! <p class="shorttext synchronized" lang="en">Returns range of selected columns</p>
     METHODS get_selected_cols_range
       RETURNING
@@ -76,7 +78,7 @@ CLASS zcl_dbbr_output_grid DEFINITION
 
     TYPES: BEGIN OF ty_s_tb_button.
              INCLUDE TYPE stb_button.
-    TYPES: fkey TYPE ui_func.
+    TYPES:   fkey TYPE ui_func.
     TYPES:END OF ty_s_tb_button.
 
     CLASS-DATA gt_shortcuts_map TYPE zif_uitb_ty_gui_screen=>ty_t_fkey_map.
@@ -190,6 +192,7 @@ CLASS zcl_dbbr_output_grid IMPLEMENTATION.
         icon      = icon_xxl
         text      = |{ TEXT-022 }|
         quickinfo = |{ TEXT-023 }|
+        butn_type = cntb_btype_dropdown
         fkey      = zif_uitb_c_gui_screen=>c_functions-shift_f8 )
       ( function  = cl_gui_alv_grid=>mc_fc_current_variant
         icon      = icon_alv_variants
@@ -283,6 +286,11 @@ CLASS zcl_dbbr_output_grid IMPLEMENTATION.
                                                         fkey            = zif_uitb_c_gui_screen=>c_functions-shift_f9
                                                         mapped_function = zif_dbbr_c_selection_functions=>quick_filter_exclusion ) ).
 
+    DATA(lo_export_menu) = NEW cl_ctmenu( ).
+    lo_export_menu->add_function(
+      fcode = zif_dbbr_c_selection_functions=>export_to_json_file
+      text  = TEXT-061 ).
+
     DATA(lo_rows_menu) = NEW cl_ctmenu( ).
     lo_rows_menu->add_function(
         fcode = zif_dbbr_c_selection_functions=>show_hidden_lines
@@ -372,6 +380,7 @@ CLASS zcl_dbbr_output_grid IMPLEMENTATION.
     gt_default_tb_menu = VALUE #(
       ( function = zif_dbbr_c_selection_functions=>quick_filter ctmenu = lo_quickfilt_menu )
       ( function = cl_gui_alv_grid=>mc_fc_current_variant       ctmenu = lo_variant_menu )
+      ( function = cl_gui_alv_grid=>mc_fc_call_xxl              ctmenu = lo_export_menu )
       ( function = 'ROWS'                                       ctmenu = lo_rows_menu )
       ( function = 'COLS'                                       ctmenu = lo_cols_menu )
       ( function = 'COPY_MENU'                                  ctmenu = lo_copy_menu )
@@ -598,8 +607,6 @@ CLASS zcl_dbbr_output_grid IMPLEMENTATION.
 
 
   METHOD set_column_names.
-    DATA: lv_tooltip TYPE lvc_tip,
-          lv_coltext TYPE lvc_txtcol.
     get_internal_variant(
       IMPORTING
         es_variant = DATA(ls_variant)
@@ -691,8 +698,6 @@ CLASS zcl_dbbr_output_grid IMPLEMENTATION.
 
 
   METHOD show_active_default_shortcuts.
-    DATA: lt_active_buttons_range TYPE RANGE OF ui_func.
-
     DATA(lt_shortcuts) = gt_shortcuts_map.
 
     IF mt_excluded IS NOT INITIAL.
@@ -804,6 +809,60 @@ CLASS zcl_dbbr_output_grid IMPLEMENTATION.
   METHOD get_selected_cols_range.
     get_selected_columns( IMPORTING et_index_columns = DATA(lt_cols) ).
     rt_col_range = VALUE #( FOR col IN lt_cols ( sign = 'I' option = 'EQ' low = col-fieldname ) ).
+  ENDMETHOD.
+
+  METHOD export_to_json_file.
+    DATA: lr_temp_data            TYPE REF TO data,
+          lt_keep_field_range     TYPE RANGE OF string.
+
+    FIELD-SYMBOLS: <lt_data>   TYPE table,
+                   <lt_export> TYPE table.
+
+    get_frontend_fieldcatalog( IMPORTING et_fieldcatalog = DATA(lt_fieldcat) ).
+    DELETE lt_fieldcat WHERE tech   = abap_true OR
+                             no_out = abap_true.
+    ASSIGN mt_outtab->* TO <lt_data>.
+    DATA(lo_tab_type) = CAST cl_abap_tabledescr( cl_abap_typedescr=>describe_by_data( <lt_data> ) ).
+    DATA(lo_tab_line_type) = CAST cl_abap_structdescr( lo_tab_type->get_table_line_type( ) ).
+    DATA(lt_tab_comps) = lo_tab_line_type->get_components( ).
+
+    lt_keep_field_range = VALUE #( FOR ls_fcat IN lt_fieldcat ( sign = 'I' option = 'EQ' low = ls_fcat-fieldname ) ).
+
+    DELETE lt_tab_comps WHERE name NOT IN lt_keep_field_range.
+    DATA(lo_export_tab_type) = cl_abap_tabledescr=>get( p_line_type = cl_abap_structdescr=>create( lt_tab_comps ) ).
+    CREATE DATA lr_temp_data TYPE HANDLE lo_export_tab_type.
+    ASSIGN lr_temp_data->* TO <lt_export>.
+
+    get_filtered_entries( IMPORTING et_filtered_entries = DATA(lt_filtered_entries) ).
+
+    DATA(lv_copied_rows) = 0.
+
+    LOOP AT <lt_data> ASSIGNING FIELD-SYMBOL(<ls_line>).
+      IF lt_filtered_entries IS NOT INITIAL.
+        CHECK NOT line_exists( lt_filtered_entries[ table_line = sy-tabix ] ).
+      ENDIF.
+
+      APPEND INITIAL LINE TO <lt_export> ASSIGNING FIELD-SYMBOL(<ls_exported_line>).
+      <ls_exported_line> = CORRESPONDING #( <ls_line> ).
+    ENDLOOP.
+
+*    data()/ui2/cl_json=>serialize(
+*      EXPORTING
+*        data             = <lt_export>
+*        compress         =
+*        name             =
+*        pretty_name      = /ui2/cl_json=>pretty_mode-low_case
+*        type_descr       =
+*        assoc_arrays     =
+*        ts_as_iso8601    =
+*        expand_includes  =
+*        assoc_arrays_opt =
+*        numc_as_string   =
+*        name_mappings    =
+*        conversion_exits =
+*      RECEIVING
+*        r_json           =
+*    ).
   ENDMETHOD.
 
 ENDCLASS.

@@ -1403,7 +1403,7 @@ CLASS zcl_dbbr_selection_controller IMPLEMENTATION.
            zif_dbbr_c_selection_functions=>navigate_association OR
            zif_dbbr_c_selection_functions=>show_cds_source OR
            zif_dbbr_c_selection_functions=>hide_other_columns OR
-           zif_dbbr_c_selection_functions=>open_in_sql_console or
+           zif_dbbr_c_selection_functions=>open_in_sql_console OR
            zif_dbbr_c_selection_functions=>determine_line_count.
         RETURN.
     ENDCASE.
@@ -2492,6 +2492,10 @@ CLASS zcl_dbbr_selection_controller IMPLEMENTATION.
         mo_alv_grid->copy_as_value_statement(
             if_compact = xsdbool( lv_function_code = zif_dbbr_c_selection_functions=>copy_as_val_stmnt_compact )
         ).
+        RETURN.
+
+      WHEN zif_dbbr_c_selection_functions=>export_to_json_file.
+        mo_alv_grid->export_to_json_file( ).
         RETURN.
 
 ***      WHEN zif_dbbr_c_selection_functions=>disable_checkbox_col_style.

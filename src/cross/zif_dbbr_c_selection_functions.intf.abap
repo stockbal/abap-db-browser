@@ -38,6 +38,7 @@ INTERFACE zif_dbbr_c_selection_functions
   CONSTANTS emph_red TYPE sy-ucomm VALUE 'EMPH_RED' ##NO_TEXT.
   CONSTANTS emph_red_inverted TYPE sy-ucomm VALUE 'EMPH_RED_INVERTED' ##NO_TEXT.
   CONSTANTS emph_yellow TYPE sy-ucomm VALUE 'EMPH_YELLOW' ##NO_TEXT.
+  CONSTANTS export_to_json_file TYPE sy-ucomm VALUE 'JSON_EXPORT' ##NO_TEXT.
   CONSTANTS filter_lines TYPE sy-ucomm VALUE '&ILT' ##NO_TEXT.
   CONSTANTS freeze_rows_cols TYPE sy-ucomm VALUE 'FIX_ROWS_COLS' ##NO_TEXT.
   CONSTANTS go_to_column TYPE sy-ucomm VALUE 'GO_TO_COL' ##NO_TEXT.
